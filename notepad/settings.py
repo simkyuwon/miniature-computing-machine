@@ -25,13 +25,13 @@ SECRET_KEY = 'v3wajsqwi1j#nqmh$xg8v)@bd5&9rk$+jt(kuvde*!-!((qozy'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['218.50.46.91',
-                 '127.0.0.1']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'notepadDB.apps.NotepaddbConfig',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'sslserver',
 ]
 
 MIDDLEWARE = [
@@ -71,7 +70,15 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'notepad.wsgi.application'
-
+ASGI_APPLICATION = 'notepad.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('localhost', 6379)]
+        }
+    }
+}
 
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
