@@ -7,8 +7,12 @@ from .models import Folder, File
 
 @csrf_exempt
 def make_folder(request):
-    try:
+    if 'id' not in request.POST:
+        parent_folder = None
+    else:
         parent_folder = Folder.objects.get(id=request.POST['id'])
+
+    try:
         new_folder = {'name': request.POST['name']}
     except KeyError:
         return HttpResponse("Key Error")
@@ -39,7 +43,7 @@ def search_folder(request):
             child_list['folder'].append(folder_data)
 
         for file in child_file:
-            file_data = {'title': file.title, 'size': 0}
+            file_data = {'id': file.id, 'title': file.title, 'size': 0}
             if file.contents:
                 file_data['size'] = file.contents.size
 
@@ -90,10 +94,10 @@ def update_file(request):
 
         if file_object is None:
             return HttpResponse("File not Found")
+
+        file_object.contents = request.FILES['contents']
+        file_object.save(update_fields=['contents'])
     except KeyError:
         return HttpResponse("Key Error")
-
-    file_object.contents = request.FILES['contents']
-    file_object.save(update_fields=['contents'])
 
     return HttpResponse(file_object.contents.read())

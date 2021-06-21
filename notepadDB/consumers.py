@@ -16,10 +16,12 @@ class EditConsumer(WebsocketConsumer):
         self.accept()
 
     def disconnect(self, close_code):
-        async_to_sync(self.channel_layer.group_discard)(
-            self.room_group_name,
-            self.channel_name
-        )
+        if self.file_handler is not None:
+            self.file_handler_list.del_file_handler(self.room_group_name)
+            async_to_sync(self.channel_layer.group_discard)(
+                self.room_group_name,
+                self.channel_name
+            )
 
     def receive(self, text_data):
         text_data_json = json.loads(text_data)
@@ -42,37 +44,25 @@ class EditConsumer(WebsocketConsumer):
                 self.room_group_name,
                 self.channel_name
             )
-        elif text_data_json['command'] == "append":
-            if self.room_group_name is None or self.file_handler is None:
-                pass
-            text = text_data_json['text']
-            self.file_handler.append_text(text)
-            async_to_sync(self.channel_layer.group_send)(
-                self.room_group_name,
-                {
-                    'type': 'read_file',
-                    'text': str(self.file_handler.read_file())
-                }
-            )
-        elif text_data_json['command'] == "insert":
-            if self.room_group_name is None or self.file_handler is None:
-                pass
-            text = text_data_json['text']
-            seek_index = int(text_data_json['seek'])
-            self.file_handler.insert_text(text, seek_index)
-            async_to_sync(self.channel_layer.group_send)(
-                self.room_group_name,
-                {
-                    'type': 'read_file',
-                    'text': str(self.file_handler.read_file())
-                }
-            )
-        elif text_data_json['command'] == "delete":
-            if self.room_group_name is None or self.file_handler is None:
-                pass
-            seek_index = int(text_data_json['seek'])
-            length = int(text_data_json['length'])
-            self.file_handler.delete_text(seek_index, length)
+        else:
+            if text_data_json['command'] == "append":
+                if self.room_group_name is None or self.file_handler is None:
+                    pass
+                text = text_data_json['text']
+                self.file_handler.append_text(text)
+            elif text_data_json['command'] == "insert":
+                if self.room_group_name is None or self.file_handler is None:
+                    pass
+                text = text_data_json['text']
+                seek_index = int(text_data_json['seek'])
+                self.file_handler.insert_text(text, seek_index)
+            elif text_data_json['command'] == "delete":
+                if self.room_group_name is None or self.file_handler is None:
+                    pass
+                seek_index = int(text_data_json['seek'])
+                length = int(text_data_json['length'])
+                self.file_handler.delete_text(seek_index, length)
+
             async_to_sync(self.channel_layer.group_send)(
                 self.room_group_name,
                 {
@@ -105,24 +95,32 @@ class FileHandler:
         self.file.write(bytes(text, encoding="utf-8"))
 
     def insert_text(self, text, seek_index):
-        temp = tempfile.TemporaryFile("rb+")
+        temp = tempfile.TemporaryFile("wb+")
         self.file.seek(0)
         temp.write(self.file.read(seek_index))
         temp.write(bytes(text, encoding="utf-8"))
         temp.write(self.file.read())
-        self.file = temp
+
+        self.file.seek(0)
+        self.file.truncate()
+        temp.seek(0)
+        self.file.write(temp.read())
 
     def delete_text(self, seek_index, length):
-        temp = tempfile.TemporaryFile('rb+')
+        temp = tempfile.TemporaryFile('wb+')
         self.file.seek(0)
         temp.write(self.file.read(seek_index))
         self.file.seek(length, 1)
         temp.write(self.file.read())
-        self.file = temp
+
+        self.file.seek(0)
+        self.file.truncate()
+        temp.seek(0)
+        self.file.write(temp.read())
 
     def read_file(self):
         self.file.seek(0)
-        return self.file.read().decode('utf-8').split('\n')
+        return self.file.read().decode('utf-8')
 
 
 class FileHandlerList(object):
